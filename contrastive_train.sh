@@ -4,6 +4,8 @@ hostname
 nvidia-smi
 
 export CUDA_VISIBLE_DEVICES=0
+export CUBLAS_WORKSPACE_CONFIG=:4096:8
+SEED=1
 
 # Get unique log file,
 SAVE_DIR=/home/sarah/PycharmProjects/generalized-category-discovery-main/osr_novel_categories/dev_outputs/
@@ -25,5 +27,7 @@ ${PYTHON} -m methods.contrastive_training.contrastive_training \
             --contrast_unlabel_only 'False' \
             --transform 'imagenet' \
             --lr 0.1 \
+            --seed ${SEED} \
+            --deterministic 'True' \
             --eval_funcs 'v1' 'v2' \
 > ${SAVE_DIR}logfile_${EXP_NUM}.out
