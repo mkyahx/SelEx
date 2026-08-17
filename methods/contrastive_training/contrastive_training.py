@@ -614,13 +614,16 @@ def test_kmeans(model, test_loader, epoch,
     # Get portion of mask_cls which corresponds to the unlabelled set
     mask = mask.astype(bool)
     all_feats = np.concatenate(all_feats)
+    if not np.isfinite(all_feats).all():
+        raise ValueError('NaN/Inf found in extracted features before GPU kmeans')
     # -----------------------
     # EVALUATE
     # -----------------------
 
     if Use_GPU:
         preds, prototypes = kmeans(X=torch.from_numpy(all_feats).to(device), num_clusters=args.num_unlabeled_classes+args.num_labeled_classes,
-                                       distance='euclidean', device=device, tqdm_flag=False)
+                                       distance='euclidean', device=device, tqdm_flag=False,
+                                       iter_limit=args.max_kmeans_iter, seed=args.seed)
 
         preds, prototypes = preds.cpu().numpy(), prototypes.cpu().numpy()
     else:
@@ -683,6 +686,7 @@ if __name__ == "__main__":
     parser.add_argument('--prototype_extraction_interval', default=1, type=int)
 
     parser.add_argument('--gpu_clustering', type=str2bool, default=True)
+    parser.add_argument('--max_kmeans_iter', default=100, type=int)
     parser.add_argument('--unbalanced', type=str2bool, default=False)
 
     parser.add_argument('--gpu_id', default=0, type=int)

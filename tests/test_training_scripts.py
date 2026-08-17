@@ -7,7 +7,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 class TrainingScriptSeedTest(unittest.TestCase):
 
-    def test_contrastive_training_shell_scripts_pass_seed_and_determinism(self):
+    def test_contrastive_training_shell_scripts_loop_over_seeds_and_determinism(self):
         script_paths = [
             os.path.join(REPO_ROOT, "contrastive_train.sh"),
             os.path.join(REPO_ROOT, "bash_scripts", "contrastive_train.sh"),
@@ -18,9 +18,11 @@ class TrainingScriptSeedTest(unittest.TestCase):
                 with open(script_path, "r", encoding="utf-8") as handle:
                     contents = handle.read()
 
-                self.assertIn("SEED=", contents)
+                self.assertIn("for SEED in 0 1 2; do", contents)
+                self.assertIn("done", contents)
                 self.assertIn("--seed ${SEED}", contents)
                 self.assertIn("--deterministic 'True'", contents)
+                self.assertIn("logfile_${EXP_NUM}_seed_${SEED}.out", contents)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,6 @@ nvidia-smi
 
 export CUDA_VISIBLE_DEVICES=0
 export CUBLAS_WORKSPACE_CONFIG=:4096:8
-SEED=1
 
 # Get unique log file,
 SAVE_DIR=/home/sarah/PycharmProjects/generalized-category-discovery-main/osr_novel_categories/dev_outputs/
@@ -14,7 +13,9 @@ EXP_NUM=$(ls ${SAVE_DIR} | wc -l)
 EXP_NUM=$((${EXP_NUM}+1))
 echo $EXP_NUM
 
-${PYTHON} -m methods.contrastive_training.contrastive_training \
+for SEED in 0 1 2; do
+    echo "Running seed ${SEED}"
+    ${PYTHON} -m methods.contrastive_training.contrastive_training \
             --dataset_name 'cifar10' \
             --batch_size 128 \
             --grad_from_block 10 \
@@ -30,4 +31,5 @@ ${PYTHON} -m methods.contrastive_training.contrastive_training \
             --seed ${SEED} \
             --deterministic 'True' \
             --eval_funcs 'v1' 'v2' \
-> ${SAVE_DIR}logfile_${EXP_NUM}.out
+    > ${SAVE_DIR}logfile_${EXP_NUM}_seed_${SEED}.out
+done
