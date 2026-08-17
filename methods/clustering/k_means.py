@@ -10,7 +10,7 @@ import numpy as np
 from sklearn.cluster import KMeans
 import torch
 from project_utils.cluster_utils import str2bool
-from project_utils.general_utils import seed_torch
+from project_utils.seed_utils import make_dataloader_seed_kwargs, seed_everything
 from project_utils.cluster_and_log_utils import log_accs_from_preds
 
 from methods.clustering.feature_vector_dataset import FeatureVectorDataset
@@ -76,7 +76,7 @@ def test_kmeans_semi_sup(merge_test_loader, args, K=None, silence =True, is_code
     else:
         cluster_size =math.ceil(len(targets) / (args.num_labeled_classes + args.num_unlabeled_classes))
     kmeans = SemiSupKMeans(k=K, tolerance=1e-4, max_iterations=args.max_kmeans_iter, init='k-means++',
-                           n_init=args.k_means_init, random_state=None, n_jobs=None, pairwise_batch_size=1024, mode=None,
+                           n_init=args.k_means_init, random_state=args.seed, n_jobs=None, pairwise_batch_size=1024, mode=None,
                            protos=None, cluster_size=cluster_size, is_code=is_code)
 
     l_feats, u_feats, l_targets, u_targets = (torch.from_numpy(x).to(device) for
@@ -129,6 +129,8 @@ if __name__ == "__main__":
 
     parser.add_argument('--silent', type=str2bool, default=True)
     parser.add_argument('--unbalanced', type=str2bool, default=False)
+    parser.add_argument('--seed', default=1, type=int)
+    parser.add_argument('--deterministic', type=str2bool, default=True)
 
 
     # ----------------------
@@ -136,7 +138,7 @@ if __name__ == "__main__":
     # ----------------------
     args = parser.parse_args()
     cluster_accs = {}
-    seed_torch(0)
+    seed_everything(args.seed, deterministic=args.deterministic)
     args.save_dir = os.path.join(args.root_dir, f'{args.model_name}_{args.dataset_name}')
 
     args = get_class_splits(args)
@@ -187,11 +189,14 @@ if __name__ == "__main__":
     train_dataset.target_transform = target_transform
 
     unlabelled_train_loader = DataLoader(unlabelled_train_examples_test, num_workers=args.num_workers,
-                                        batch_size=args.batch_size, shuffle=False)
+                                        batch_size=args.batch_size, shuffle=False,
+                                        **make_dataloader_seed_kwargs(args.seed))
     test_loader = DataLoader(test_dataset, num_workers=args.num_workers,
-                                      batch_size=args.batch_size, shuffle=False)
+                                      batch_size=args.batch_size, shuffle=False,
+                                      **make_dataloader_seed_kwargs(args.seed + 1))
     train_loader = DataLoader(train_dataset, num_workers=args.num_workers,
-                              batch_size=args.batch_size, shuffle=False)
+                              batch_size=args.batch_size, shuffle=False,
+                              **make_dataloader_seed_kwargs(args.seed + 2))
 
     print('Performing SS-K-Means on all in the training data...')
     all_acc, old_acc, new_acc, kmeans_feature = test_kmeans_semi_sup(train_loader, args, K=args.K,silence=args.silent, unbalanced =args.unbalanced)

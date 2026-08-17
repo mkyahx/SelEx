@@ -8,6 +8,8 @@ import numpy as np
 from sklearn.cluster import KMeans
 import torch
 from project_utils.cluster_utils import cluster_acc
+from project_utils.cluster_utils import str2bool
+from project_utils.seed_utils import make_dataloader_seed_kwargs, seed_everything
 
 from methods.clustering.feature_vector_dataset import FeatureVectorDataset
 from data.get_datasets import get_datasets, get_class_splits
@@ -226,11 +228,14 @@ if __name__ == "__main__":
     parser.add_argument('--search_mode', type=str, default='brent', help='Mode for black box optimisation')
     parser.add_argument('--dataset_name', type=str, default='cifar10', help='options: cifar10, cifar100, scars')
     parser.add_argument('--prop_train_labels', type=float, default=0.5)
+    parser.add_argument('--seed', default=1, type=int)
+    parser.add_argument('--deterministic', type=str2bool, default=True)
 
     # ----------------------
     # INIT
     # ----------------------
     args = parser.parse_args()
+    seed_everything(args.seed, deterministic=args.deterministic)
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     cluster_accs = {}
@@ -268,11 +273,14 @@ if __name__ == "__main__":
     # DATALOADERS
     # --------------------
     unlabelled_train_loader = DataLoader(unlabelled_train_examples_test, num_workers=args.num_workers,
-                                         batch_size=args.batch_size, shuffle=False)
+                                         batch_size=args.batch_size, shuffle=False,
+                                         **make_dataloader_seed_kwargs(args.seed))
     test_loader = DataLoader(test_dataset, num_workers=args.num_workers,
-                             batch_size=args.batch_size, shuffle=False)
+                             batch_size=args.batch_size, shuffle=False,
+                             **make_dataloader_seed_kwargs(args.seed + 1))
     train_loader = DataLoader(train_dataset, num_workers=args.num_workers,
-                              batch_size=args.batch_size, shuffle=False)
+                              batch_size=args.batch_size, shuffle=False,
+                              **make_dataloader_seed_kwargs(args.seed + 2))
 
     print('Testing on all in the training data...')
     if args.search_mode == 'brent':

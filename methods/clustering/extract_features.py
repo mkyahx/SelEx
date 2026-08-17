@@ -30,6 +30,7 @@ from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 
 from project_utils.general_utils import strip_state_dict, str2bool
+from project_utils.seed_utils import make_dataloader_seed_kwargs, seed_everything
 from copy import deepcopy
 from torchvision.utils import save_image
 
@@ -132,6 +133,8 @@ if __name__ == "__main__":
     parser.add_argument('--model_name', type=str, default='vit_dino', help='Format is {model_name}_{pretrain}')
     parser.add_argument('--dataset', type=str, default='cifar100', help='options: cifar10, cifar100, scars,aircraft')
     parser.add_argument('--silent', type=str2bool, default=True)
+    parser.add_argument('--seed', default=1, type=int)
+    parser.add_argument('--deterministic', type=str2bool, default=True)
 
 
 
@@ -139,6 +142,7 @@ if __name__ == "__main__":
     # INIT
     # ----------------------
     args = parser.parse_args()
+    seed_everything(args.seed, deterministic=args.deterministic)
     device = torch.device('cuda:0')
 
     args.save_dir = os.path.join(args.root_dir, f'{args.model_name}_{args.dataset}')
@@ -308,8 +312,10 @@ if __name__ == "__main__":
     # ----------------------
     # DATALOADER
     # ----------------------
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
-    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers,
+                              **make_dataloader_seed_kwargs(args.seed))
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers,
+                             **make_dataloader_seed_kwargs(args.seed + 1))
 
     if not args.silent: print('Creating base directories...')
     # ----------------------

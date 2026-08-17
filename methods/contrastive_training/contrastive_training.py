@@ -18,6 +18,7 @@ else:
 
 
 from project_utils.general_utils import init_experiment, get_mean_lr, str2bool, get_dino_head_weights
+from project_utils.seed_utils import make_dataloader_seed_kwargs, make_torch_generator, seed_everything
 
 from data.augmentations import get_transform
 from data.get_datasets import get_datasets, get_class_splits
@@ -539,7 +540,7 @@ def extract_labeled_protos(model, train_loader, args):
     else: cluster_size=math.ceil(n_samples /(args.num_labeled_classes + args.num_unlabeled_classes))
     kmeanssem = SemiSupKMeans(k=args.num_labeled_classes + args.num_unlabeled_classes, tolerance=1e-4,
                               max_iterations=10, init='k-means++',
-                              n_init=1, random_state=None, n_jobs=None, pairwise_batch_size=1024,
+                              n_init=1, random_state=args.seed, n_jobs=None, pairwise_batch_size=1024,
                               mode=None, protos=None,cluster_size=cluster_size)
 
     l_feats, u_feats, l_targets, u_targets = (torch.from_numpy(x).to(device) for
@@ -581,7 +582,7 @@ def extract_labeled_protos(model, train_loader, args):
             cluster_size = math.ceil( n_samples / (n_labeled+n_novel))
         kmeans_higher =SemiSupKMeans(k=n_labeled+n_novel, tolerance=1e-4,
                               max_iterations=10, init='k-means++',
-                              n_init=1, random_state=None, n_jobs=None, pairwise_batch_size=1024,
+                              n_init=1, random_state=args.seed, n_jobs=None, pairwise_batch_size=1024,
                               mode=None, protos=None,cluster_size=cluster_size)
         kmeans_higher.fit_mix(u_feats, l_feats, level_l_targets)
         preds_level = kmeans_higher.labels_
@@ -663,6 +664,7 @@ if __name__ == "__main__":
     parser.add_argument('--exp_root', type=str, default=exp_root)
     parser.add_argument('--transform', type=str, default='imagenet')
     parser.add_argument('--seed', default=1, type=int)
+    parser.add_argument('--deterministic', type=str2bool, default=True)
 
     parser.add_argument('--base_model', type=str, default='vit_dino')
     parser.add_argument('--temperature', type=float, default=1.0)
@@ -692,10 +694,9 @@ if __name__ == "__main__":
     # INIT
     # ----------------------
     args = parser.parse_args()
+    seed_everything(args.seed, deterministic=args.deterministic)
     device = torch.device('cuda:0')
     args = get_class_splits(args)
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
 
     args.num_labeled_classes = len(args.train_classes)
     args.num_unlabeled_classes = len(args.unlabeled_classes)
@@ -781,19 +782,26 @@ if __name__ == "__main__":
     unlabelled_len = len(train_dataset.unlabelled_dataset)
     sample_weights = [1 if i < label_len else label_len / (unlabelled_len+label_len) for i in range(len(train_dataset))]
     sample_weights = torch.DoubleTensor(sample_weights)
-    sampler = torch.utils.data.WeightedRandomSampler(sample_weights, num_samples=len(train_dataset))
+    sampler = torch.utils.data.WeightedRandomSampler(
+        sample_weights,
+        num_samples=len(train_dataset),
+        generator=make_torch_generator(args.seed),
+    )
 
     # --------------------
     # DATALOADERS
     # --------------------
-    merge_train_loader = DataLoader(train_dataset, num_workers=args.num_workers, batch_size=args.batch_size, shuffle=False)
+    merge_train_loader = DataLoader(train_dataset, num_workers=args.num_workers, batch_size=args.batch_size,
+                                    shuffle=False, **make_dataloader_seed_kwargs(args.seed))
 
     train_loader = DataLoader(train_dataset, num_workers=args.num_workers, batch_size=args.batch_size, shuffle=False,
-                              sampler=sampler, drop_last=True)
+                              sampler=sampler, drop_last=True, **make_dataloader_seed_kwargs(args.seed + 1))
     test_loader_unlabelled = DataLoader(unlabelled_train_examples_test, num_workers=args.num_workers,
-                                        batch_size=args.batch_size, shuffle=False)
+                                        batch_size=args.batch_size, shuffle=False,
+                                        **make_dataloader_seed_kwargs(args.seed + 2))
     test_loader_labelled = DataLoader(test_dataset, num_workers=args.num_workers,
-                                      batch_size=args.batch_size, shuffle=False)
+                                      batch_size=args.batch_size, shuffle=False,
+                                      **make_dataloader_seed_kwargs(args.seed + 3))
 
     # ----------------------
     # PROJECTION HEAD
@@ -817,15 +825,19 @@ if __name__ == "__main__":
     if args.report:
         print("Reports for the best checkpoint:")
         os.system("CUDA_VISIBLE_DEVICES="+str(args.gpu_id)+" python ../clustering/extract_features.py --dataset "+args.dataset_name+
-                  " --warmup_model_dir "+ args.model_path.replace('(','\(').replace(')','\)').replace('|','\|'))
-        os.system("CUDA_VISIBLE_DEVICES="+str(args.gpu_id)+" python ../clustering/k_means.py --dataset "+args.dataset_name+
-                  " --unbalanced "+str(int(args.unbalanced)))
+                  " --warmup_model_dir "+ args.model_path.replace('(','\\(').replace(')','\\)').replace('|','\\|')+
+                  " --seed "+str(args.seed)+" --deterministic "+str(args.deterministic))
+        os.system("CUDA_VISIBLE_DEVICES="+str(args.gpu_id)+" python ../clustering/k_means.py --dataset_name "+args.dataset_name+
+                  " --unbalanced "+str(int(args.unbalanced))+
+                  " --seed "+str(args.seed)+" --deterministic "+str(args.deterministic))
         print("Reports for the last checkpoint:")
         os.system("CUDA_VISIBLE_DEVICES="+str(args.gpu_id)+" python ../clustering/extract_features.py --dataset "+args.dataset_name+
-                  " --warmup_model_dir "+ args.model_path.replace('(','\(').replace(')','\)').replace('|','\|')+
-                  "  --use_best_model 0")
-        os.system("CUDA_VISIBLE_DEVICES="+str(args.gpu_id)+" python ../clustering/k_means.py --dataset "+args.dataset_name+
-                  " --unbalanced "+str(int(args.unbalanced)))
+                  " --warmup_model_dir "+ args.model_path.replace('(','\\(').replace(')','\\)').replace('|','\\|')+
+                  "  --use_best_model 0"+
+                  " --seed "+str(args.seed)+" --deterministic "+str(args.deterministic))
+        os.system("CUDA_VISIBLE_DEVICES="+str(args.gpu_id)+" python ../clustering/k_means.py --dataset_name "+args.dataset_name+
+                  " --unbalanced "+str(int(args.unbalanced))+
+                  " --seed "+str(args.seed)+" --deterministic "+str(args.deterministic))
 
     torch.cuda.empty_cache()
     print(args.model_path)

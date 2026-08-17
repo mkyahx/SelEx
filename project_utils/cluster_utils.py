@@ -9,6 +9,7 @@ from scipy.optimize import linear_sum_assignment as linear_assignment
 import random
 import os
 import argparse
+from project_utils.seed_utils import seed_everything
 
 from sklearn.metrics.cluster import normalized_mutual_info_score as nmi_score
 from sklearn.metrics import adjusted_rand_score as ari_score
@@ -187,14 +188,7 @@ def accuracy(output, target, topk=(1,)):
 
 
 def seed_torch(seed=1029):
-    random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed) # if you are using multi-GPU.
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.deterministic = True
+    seed_everything(seed, deterministic=True)
 
 
 def str2bool(v):
