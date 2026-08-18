@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 
 
-HEADER = ["id", "bbox_x1", "bbox_y1", "bbox_x2", "bbox_y2", "relative_im_path"]
+HEADER = ["bbox_x1", "bbox_y1", "bbox_x2", "bbox_y2", "class", "relative_im_path"]
 
 
 def unwrap(value):
@@ -28,11 +28,12 @@ def unwrap(value):
 def annotation_rows(annotations):
     """Return train/test CSV rows from the official ``cars_annos.mat`` annotations."""
     train_rows, test_rows = [], []
-    for index, annotation in enumerate(annotations, start=1):
+    for annotation in annotations:
         relative_path = str(unwrap(annotation[0]))
         x1, y1, x2, y2 = (unwrap(annotation[position]) for position in range(1, 5))
+        class_id = unwrap(annotation[5])
         is_test = int(unwrap(annotation[-1]))
-        row = [index, x1, y1, x2, y2, relative_path]
+        row = [x1, y1, x2, y2, class_id, relative_path]
         (test_rows if is_test else train_rows).append(row)
     return train_rows, test_rows
 

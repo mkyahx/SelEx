@@ -16,6 +16,12 @@ import scipy.io,csv
 meta_default_path = car_root.rstrip('/') + '.mat'
 csv_default_path = car_root.rstrip('/') + '.csv'
 
+
+def csv_bbox_key(row, header):
+    """Support both legacy ``id,bbox...`` and official ``bbox...,class,path`` CSV layouts."""
+    coordinate_start = 1 if header and header[0].strip().lower() == 'id' else 0
+    return '$'.join(row[coordinate_start:coordinate_start + 4])
+
 class CustomSCar(StanfordCars):
 
     def __init__(self, *args, **kwargs):
@@ -61,16 +67,16 @@ class CarsDataset(Dataset):
             rows_test.append(row)
         cnt = 0
         ind_change = {}
+        train_header = rows_train[0] if rows_train else []
+        test_header = rows_test[0] if rows_test else []
         for i in range(1, len(rows_train)):
             cnt += 1
-            ind_change[rows_train[i][1] + '$' + rows_train[i][2] + '$' + rows_train[i][3] + '$' + rows_train[i][4]] = \
-                rows_train[i][-1]
+            ind_change[csv_bbox_key(rows_train[i], train_header)] = rows_train[i][-1]
         cnt = 0
 
         for i in range(1, len(rows_test)):
             cnt += 1
-            ind_change[rows_test[i][1] + '$' + rows_test[i][2] + '$' + rows_test[i][3] + '$' + rows_test[i][4]] = \
-                rows_test[i][-1]
+            ind_change[csv_bbox_key(rows_test[i], test_header)] = rows_test[i][-1]
 
         #if not isinstance(metas, str):
         #    raise Exception("Train metas must be string location !")

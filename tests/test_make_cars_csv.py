@@ -12,8 +12,8 @@ class MakeCarsCsvTests(unittest.TestCase):
 
         train_rows, test_rows = annotation_rows(annotations)
 
-        self.assertEqual(train_rows, [[1, 1, 2, 3, 4, "cars_train/00001.jpg"]])
-        self.assertEqual(test_rows, [[2, 10, 20, 30, 40, "cars_test/00002.jpg"]])
+        self.assertEqual(train_rows, [[1, 2, 3, 4, 7, "cars_train/00001.jpg"]])
+        self.assertEqual(test_rows, [[10, 20, 30, 40, 9, "cars_test/00002.jpg"]])
 
 
 if __name__ == "__main__":
