@@ -3,7 +3,6 @@ sys.path.append('../../../SelEx/')
 dino_v1 = True
 
 import argparse
-import inspect
 import os
 
 from torch.utils.data import DataLoader
@@ -39,30 +38,6 @@ from kmeans_pytorch import kmeans
 import warnings
 import math
 warnings.filterwarnings("ignore")
-
-
-def run_gpu_kmeans_or_fallback(all_feats, args):
-    kmeans_params = inspect.signature(kmeans).parameters
-    num_clusters = args.num_unlabeled_classes + args.num_labeled_classes
-
-    if "iter_limit" not in kmeans_params:
-        print("kmeans_pytorch.kmeans does not support iter_limit; falling back to sklearn KMeans.")
-        kmeanss = KMeans(n_clusters=num_clusters, random_state=args.seed).fit(all_feats)
-        return kmeanss.labels_, None
-
-    kwargs = {
-        "X": torch.from_numpy(all_feats).to(device),
-        "num_clusters": num_clusters,
-        "distance": "euclidean",
-        "device": device,
-        "tqdm_flag": False,
-        "iter_limit": args.max_kmeans_iter,
-    }
-    if "seed" in kmeans_params:
-        kwargs["seed"] = args.seed
-
-    preds, prototypes = kmeans(**kwargs)
-    return preds.cpu().numpy(), prototypes.cpu().numpy()
 
 
 class LabelSmoothingLoss(torch.nn.Module):
@@ -639,14 +614,15 @@ def test_kmeans(model, test_loader, epoch,
     # Get portion of mask_cls which corresponds to the unlabelled set
     mask = mask.astype(bool)
     all_feats = np.concatenate(all_feats)
-    if not np.isfinite(all_feats).all():
-        raise ValueError('NaN/Inf found in extracted features before GPU kmeans')
     # -----------------------
     # EVALUATE
     # -----------------------
 
     if Use_GPU:
-        preds, prototypes = run_gpu_kmeans_or_fallback(all_feats, args)
+        preds, prototypes = kmeans(X=torch.from_numpy(all_feats).to(device), num_clusters=args.num_unlabeled_classes+args.num_labeled_classes,
+                                       distance='euclidean', device=device, tqdm_flag=False)
+
+        preds, prototypes = preds.cpu().numpy(), prototypes.cpu().numpy()
     else:
         kmeanss = KMeans(n_clusters=args.num_labeled_classes + args.num_unlabeled_classes, random_state=0).fit(
             all_feats)
@@ -707,7 +683,6 @@ if __name__ == "__main__":
     parser.add_argument('--prototype_extraction_interval', default=1, type=int)
 
     parser.add_argument('--gpu_clustering', type=str2bool, default=True)
-    parser.add_argument('--max_kmeans_iter', default=100, type=int)
     parser.add_argument('--unbalanced', type=str2bool, default=False)
 
     parser.add_argument('--gpu_id', default=0, type=int)
