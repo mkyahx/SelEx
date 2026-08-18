@@ -43,6 +43,9 @@ class AsymmetricMaskEntrypointTests(unittest.TestCase):
                     self.assertIn(flag, contents)
                 self.assertIn("--mask_root", contents)
                 self.assertIn("--max_foreground_tokens 128", contents)
+                self.assertIn("SAVE_DIR", contents)
+                self.assertIn("EXP_NUM", contents)
+                self.assertIn("logfile_${EXP_NUM}_seed_${SEED}.out", contents)
 
 
 if __name__ == "__main__":

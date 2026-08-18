@@ -9,6 +9,17 @@
 set -euo pipefail
 : "${MASK_ROOT:?Set MASK_ROOT to the Aircraft TokenCut mask directory.}"
 
+SAVE_DIR="${SAVE_DIR:-$(pwd)/dev_outputs}"
+mkdir -p "$SAVE_DIR"
+SEED="${SLURM_ARRAY_TASK_ID:-0}"
+if [[ -n "${SLURM_ARRAY_JOB_ID:-}" ]]; then
+  EXP_NUM="${SLURM_ARRAY_JOB_ID}"
+else
+  EXP_NUM=$(($(find "$SAVE_DIR" -mindepth 1 -maxdepth 1 | wc -l) + 1))
+fi
+LOG_FILE="${SAVE_DIR%/}/logfile_${EXP_NUM}_seed_${SEED}.out"
+echo "Running seed ${SEED}; logging to ${LOG_FILE}"
+
 python methods/contrastive_training/asymmetric_mask_training.py \
   --dataset_name aircraft \
   --batch_size 128 \
@@ -22,10 +33,11 @@ python methods/contrastive_training/asymmetric_mask_training.py \
   --contrast_unlabel_only False \
   --transform imagenet \
   --lr 0.1 \
-  --seed "${SLURM_ARRAY_TASK_ID}" \
+  --seed "${SEED}" \
   --deterministic True \
   --eval_funcs v1 v2 \
   --unsupervised_smoothing 0.5 \
   --mask_root "$MASK_ROOT" \
   --max_foreground_tokens 128 \
-  --report False
+  --report False \
+  > "$LOG_FILE" 2>&1
