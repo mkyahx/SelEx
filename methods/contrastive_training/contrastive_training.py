@@ -3,6 +3,7 @@ sys.path.append('../../../SelEx/')
 dino_v1 = True
 
 import argparse
+import inspect
 import os
 
 from torch.utils.data import DataLoader
@@ -38,6 +39,30 @@ from kmeans_pytorch import kmeans
 import warnings
 import math
 warnings.filterwarnings("ignore")
+
+
+def run_gpu_kmeans_or_fallback(all_feats, args):
+    kmeans_params = inspect.signature(kmeans).parameters
+    num_clusters = args.num_unlabeled_classes + args.num_labeled_classes
+
+    if "iter_limit" not in kmeans_params:
+        print("kmeans_pytorch.kmeans does not support iter_limit; falling back to sklearn KMeans.")
+        kmeanss = KMeans(n_clusters=num_clusters, random_state=args.seed).fit(all_feats)
+        return kmeanss.labels_, None
+
+    kwargs = {
+        "X": torch.from_numpy(all_feats).to(device),
+        "num_clusters": num_clusters,
+        "distance": "euclidean",
+        "device": device,
+        "tqdm_flag": False,
+        "iter_limit": args.max_kmeans_iter,
+    }
+    if "seed" in kmeans_params:
+        kwargs["seed"] = args.seed
+
+    preds, prototypes = kmeans(**kwargs)
+    return preds.cpu().numpy(), prototypes.cpu().numpy()
 
 
 class LabelSmoothingLoss(torch.nn.Module):
@@ -621,11 +646,7 @@ def test_kmeans(model, test_loader, epoch,
     # -----------------------
 
     if Use_GPU:
-        preds, prototypes = kmeans(X=torch.from_numpy(all_feats).to(device), num_clusters=args.num_unlabeled_classes+args.num_labeled_classes,
-                                       distance='euclidean', device=device, tqdm_flag=False,
-                                       iter_limit=args.max_kmeans_iter, seed=args.seed)
-
-        preds, prototypes = preds.cpu().numpy(), prototypes.cpu().numpy()
+        preds, prototypes = run_gpu_kmeans_or_fallback(all_feats, args)
     else:
         kmeanss = KMeans(n_clusters=args.num_labeled_classes + args.num_unlabeled_classes, random_state=0).fit(
             all_feats)
