@@ -17,7 +17,7 @@ class CustomCub2011(Dataset):
     filename = 'CUB_200_2011.tgz'
     tgz_md5 = '97eceeb196236b17998738112f37df78'
 
-    def __init__(self, root, train=True, transform=None, target_transform=None, loader=default_loader, download=True):
+    def __init__(self, root, train=True, transform=None, target_transform=None, loader=default_loader, download=False):
 
         self.root = os.path.expanduser(root)
         self.transform = transform
@@ -28,6 +28,7 @@ class CustomCub2011(Dataset):
 
 
         if download:
+            print("wtf")
             self._download()
 
         if not self._check_integrity():
@@ -63,9 +64,12 @@ class CustomCub2011(Dataset):
 
 
     def _check_integrity(self):
+        self._load_metadata()
         try:
             self._load_metadata()
         except Exception:
+            print("1")
+        
             return False
 
         for index, row in self.data.iterrows():
@@ -162,7 +166,7 @@ def get_cub_datasets(train_transform, test_transform, train_classes=range(160), 
     np.random.seed(seed)
 
     # Init entire training set
-    whole_training_set = CustomCub2011(root=cub_root, transform=train_transform, train=True, download=True)
+    whole_training_set = CustomCub2011(root=cub_root, transform=train_transform, train=True, download=False)
 
     # Get labelled training set which has subsampled classes, then subsample some indices from that
     train_dataset_labelled = subsample_classes(deepcopy(whole_training_set), include_classes=train_classes)

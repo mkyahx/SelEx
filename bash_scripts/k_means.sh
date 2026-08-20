@@ -1,4 +1,4 @@
-PYTHON='/home/sarah/miniconda3/envs/PT/bin/python'
+PYTHON='/userhome/cs/mkyahx/miniconda3/envs/selex/bin/python'
 
 hostname
 nvidia-smi
@@ -6,12 +6,12 @@ nvidia-smi
 export CUDA_VISIBLE_DEVICES=0
 
 # Get unique log file
-SAVE_DIR=/home/sarah/PycharmProjects/generalized-category-discovery-main/osr_novel_categories/dev_outputs/
+SAVE_DIR=/userhome/cs/mkyahx/SelEx/osr_novel_categories/dev_outputs/
 
 EXP_NUM=$(ls ${SAVE_DIR} | wc -l)
 EXP_NUM=$((${EXP_NUM}+1))
 echo $EXP_NUM
 
 ${PYTHON} -m methods.clustering.k_means --dataset 'scars' --semi_sup 'True' --use_ssb_splits 'True' \
- --use_best_model 'True' --max_kmeans_iter 200 --k_means_init 100 --warmup_model_exp_id '(28.04.2022_|_27.516)' \
+ --use_best_model 'True' --max_kmeans_iter 10 --k_means_init 50 --warmup_model_exp_id '(19.08.2026_|_12.691)' \
  > ${SAVE_DIR}logfile_${EXP_NUM}.out

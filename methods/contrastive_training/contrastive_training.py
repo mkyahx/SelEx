@@ -619,7 +619,7 @@ def test_kmeans(model, test_loader, epoch,
 
     if Use_GPU:
         preds, prototypes = kmeans(X=torch.from_numpy(all_feats).to(device), num_clusters=args.num_unlabeled_classes+args.num_labeled_classes,
-                                       distance='euclidean', device=device, tqdm_flag=False)
+                                       distance='euclidean', device=device)
 
         preds, prototypes = preds.cpu().numpy(), prototypes.cpu().numpy()
     else:

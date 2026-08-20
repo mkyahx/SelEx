@@ -1,4 +1,4 @@
-PYTHON='/home/sarah/miniconda3/envs/PT/bin/python'
+PYTHON='/userhome/cs/mkyahx/miniconda3/envs/selex/bin/python'
 
 hostname
 nvidia-smi
@@ -6,7 +6,7 @@ nvidia-smi
 export CUDA_VISIBLE_DEVICES=0
 
 # Get unique log file,
-SAVE_DIR=/home/sarah/PycharmProjects/generalized-category-discovery-main/osr_novel_categories/dev_outputs/
+SAVE_DIR=/userhome/cs/mkyahx/SelEx/dev_outputs/
 
 EXP_NUM=$(ls ${SAVE_DIR} | wc -l)
 EXP_NUM=$((${EXP_NUM}+1))
